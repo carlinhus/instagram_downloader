@@ -1,0 +1,2 @@
+webdriver-manager==3.8.0
+python-dotenv==0.20.0
