@@ -15,7 +15,7 @@ import requests
 from PIL import Image
 from threading import Thread
 
-#ENV VARS
+# ENV VARS
 load_dotenv()
 
 # CONSTANTS
@@ -25,8 +25,9 @@ API_VERSION = os.getenv('API_VERSION')
 USER_TO_LOG_IN = os.getenv('USER_TO_LOG_IN')
 PASSWORD_TO_LOG_IN = os.getenv('PASSWORD_TO_LOG_IN')
 SAVE_FOLDER_NAME = os.getenv('SAVE_FOLDER_NAME')
-REAL_SAVE_FOLDER_NAME = os.path.join(os.path.dirname(__file__), SAVE_FOLDER_NAME)
-NUMBER_OF_MEDIAS_PER_CALL = 50 # 50 is the maximum
+REAL_SAVE_FOLDER_NAME = os.path.join(
+    os.path.dirname(__file__), SAVE_FOLDER_NAME)
+NUMBER_OF_MEDIAS_PER_CALL = 50  # 50 is the maximum
 MAIN_USER_GRAPH_URL = "https://graph.instagram.com/%s/USER_ID/media" % API_VERSION
 USERNAME_TO_ID_API = "https://i.instagram.com/api/v1/users/web_profile_info/?username="
 USER_AGENT_ANDROID = "Instagram 219.0.0.12.117 Android"
@@ -61,9 +62,9 @@ PROTOTYPE
     If the post has more than one media, it adds a counter of medias of the post.
 '''
 def get_medias_urls(json, medias):
-    
+
     for node in json["data"]['user']['edge_owner_to_timeline_media']['edges']:
-        
+
         if 'edge_sidecar_to_children' in node['node'].keys():
             order = 0
             for subnode in node['node']['edge_sidecar_to_children']['edges']:
@@ -92,7 +93,7 @@ def remove_tags(raw_html):
 
 
 '''
-Creates folders whith de real save folder name and inside it, creates a folder with
+Creates folders with the real save folder name and inside it, creates a folder with
 the username and inside other two folder for photos and videos
 '''
 def create_folders(username):
@@ -112,7 +113,7 @@ Saves the medias calling the urls in the medias prototypes.
 def save_medias(username, medias):
     global total_medias
     total_medias = len(medias)
-    
+
     for batch_media in batch(medias, n=THREADS):
         threads = []
         for media in batch_media:
@@ -126,11 +127,12 @@ def save_medias(username, medias):
         for x in threads:
             x.join()
 
-        
+
 def batch(iterable, n=1):
     l = len(iterable)
     for ndx in range(0, l, n):
         yield iterable[ndx:min(ndx + n, l)]
+
 
 def thread_finished():
     global total_medias
@@ -138,15 +140,16 @@ def thread_finished():
     downloaded_medias += 1
     print('%d of %d medias downloaded' % (downloaded_medias, total_medias))
 
+
 def save_media(media, username):
     if media['is_video']:
         try:
             full_path = os.path.join(REAL_SAVE_FOLDER_NAME, username, 'videos', datetime.datetime.utcfromtimestamp(media['timestamp']).strftime(
-                    '%Y-%m-%d_%H_%M_%S') + (str(media['order']) + '_' if media['order'] is not None else '') + '.mp4')
+                '%Y-%m-%d_%H_%M_%S') + (str(media['order']) + '_' if media['order'] is not None else '') + '.mp4')
             urllib.request.urlretrieve(media['url'], full_path)
         except Exception as err:
             print('Video with url %s couldn\'t be downloaded' %
-                    media['url'])
+                  media['url'])
     else:
         try:
             response = requests.get(media['url'])
@@ -157,10 +160,10 @@ def save_media(media, username):
             img.save(full_path, "JPEG")
         except IOError as err:
             print('Image with url %s couldn\'t be downloaded' %
-                    media['url'])
-    
+                  media['url'])
+
     thread_finished()
-    
+
 
 def login_instagram():
     link = 'https://www.instagram.com/accounts/login/'
@@ -192,26 +195,27 @@ def login_instagram():
         print("login successful")
     else:
         print('Login failed')
-    return s    
+        sys.exit(2)
+    return s
+
+
 '''
 MAIN FUNCTION
 '''
 if __name__ == '__main__':
-    
 
-    signal.signal(signal.SIGINT, call_close) #Initializes CTRL+C handler
-    
+    signal.signal(signal.SIGINT, call_close)  # Initializes CTRL+C handler
 
-    #If no username is passed as argument, it ask for it
+    # If no username is passed as argument, it ask for it
     if len(sys.argv) == 2:
         username = sys.argv[1]
     else:
         username = input('No username set. Please enter an username: ')
 
-    #Session init of requests    
+    # Session init of requests
     session = requests.session()
 
-    #Getting the username ID of instagram
+    # Getting the username ID of instagram
     try:
         profile_info_text = session.get(
             USERNAME_TO_ID_API + username, headers=USER_AGENT_ANDROID_HEADERS).text
@@ -223,17 +227,18 @@ if __name__ == '__main__':
 
     try:
         session_instagram = login_instagram()
-        req = session_instagram.get(GRAPH_BASE_QUERY.replace('USER_ID', user_id))
+        req = session_instagram.get(
+            GRAPH_BASE_QUERY.replace('USER_ID', user_id))
         json_data = json.loads(remove_tags(req.text))
         medias = list()
         continue_search = json_data["data"]['user']['edge_owner_to_timeline_media']['page_info']['has_next_page']
         last_image = ''
-        #Saven the last image identifier given in the request if more pages are available
+        # Save the last image identifier given in the request if more pages are available
         if (continue_search):
             last_image = json_data["data"]['user']['edge_owner_to_timeline_media']['page_info']['end_cursor']
         get_medias_urls(json_data, medias)
 
-        #Iteration on folowwing pages if necessary
+        # Iteration on folowing pages if necessary
         while continue_search:
             req = session_instagram.get(GRAPH_BASE_QUERY_CONTINUE.replace(
                 'USER_ID', user_id).replace('LAST_IMAGE', last_image))
@@ -243,7 +248,6 @@ if __name__ == '__main__':
             if (continue_search):
                 last_image = json_data["data"]['user']['edge_owner_to_timeline_media']['page_info']['end_cursor']
             get_medias_urls(json_data, medias)
-        #Closing the webbrowser
         print('Number of medias: %d' % len(medias))
     except Exception as e:
         print("An error ocurred while trying to get user posts: %s" % str(e))
